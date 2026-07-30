@@ -10,7 +10,7 @@ class OperationsRepository:
 
     async def create_operation(self, data: OperationCreateRequest):
         new_operation = OperationsOrm(
-            operation_id=data.operationId,
+            operation_id=data.operation_id,
             amount=data.amount,
             currency=data.currency,
             description=data.description,
