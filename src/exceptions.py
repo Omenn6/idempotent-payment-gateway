@@ -14,6 +14,11 @@ class OperationAlreadyExistsError(PaymentGatewayException):
     detail = "Операция с таким operationId уже существует"
 
 
+class OperationNotFoundError(PaymentGatewayException):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Операция с таким operationId не найдена"
+
+
 class PaymentGatewayHTTPException(HTTPException):
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     detail = "Внутренняя ошибка платежного шлюза"
@@ -25,3 +30,8 @@ class PaymentGatewayHTTPException(HTTPException):
 class OperationAlreadyExistsHTTPException(PaymentGatewayHTTPException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Операция с таким operationId уже существует"
+
+
+class OperationNotFoundHTTPException(PaymentGatewayHTTPException):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Операция с таким operationId не найдена"

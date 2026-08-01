@@ -1,9 +1,19 @@
-import uvicorn
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+import uvicorn
 
 from src.api.operations import router as operations_router
+from src.services.provider import restart_pending_operations_helper
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await restart_pending_operations_helper()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.include_router(operations_router)
 
