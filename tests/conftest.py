@@ -1,5 +1,6 @@
-from httpx import AsyncClient, ASGITransport
 import pytest
+from fastapi import status
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy import text
 
 from src.api.dependencies import get_db
@@ -39,3 +40,16 @@ def anyio_backend():
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture(scope="function")
+async def create_operation(client):
+    payload ={
+        "operationId": "test-operation",
+        "amount": "1000.00",
+        "currency": "RUB",
+        "description": "test description",
+    }
+    response = await client.post("/operations", json=payload)
+    assert response.status_code == status.HTTP_201_CREATED
+    return payload["operationId"]
