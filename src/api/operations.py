@@ -7,8 +7,10 @@ from src.exceptions import (
     OperationAlreadyExistsHTTPException,
     OperationNotFoundError,
     OperationNotFoundHTTPException,
+    ProviderPaymentIdMismatchError,
+    ProviderPaymentIdMismatchHTTPException,
 )
-from src.schemas.operations import OperationCreateRequest, OperationResponse
+from src.schemas.operations import OperationCreateRequest, OperationResponse, ReceiptCallbackRequest
 from src.services.operations import OperationService
 from src.services.provider import send_to_provider_task
 
@@ -53,3 +55,19 @@ async def submit_operation(
 
     except OperationNotFoundError:
         raise OperationNotFoundHTTPException
+
+
+@router.post("/receipts", status_code=status.HTTP_204_NO_CONTENT)
+async def receive_receipt(
+        callback_data: ReceiptCallbackRequest,
+        db: DBDep,
+):
+    try:
+        await OperationService(db).process_receipt(callback_data)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    except OperationNotFoundError:
+        raise OperationNotFoundHTTPException
+
+    except ProviderPaymentIdMismatchError:
+        raise ProviderPaymentIdMismatchHTTPException

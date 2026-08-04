@@ -1,7 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.operations import OperationsOrm
+from src.models.operations import OperationsOrm, OperationEventsOrm
 from src.schemas.operations import OperationCreateRequest
 from src.statuses import OperationStatus
 
@@ -30,3 +30,31 @@ class OperationsRepository:
         query = select(OperationsOrm).filter_by(status=OperationStatus.PROCESSING)
         result = await self.session.execute(query)
         return result.scalars().all()
+
+    async def add_event(
+            self,
+            operation_id: str,
+            event_type: str,
+            from_status: OperationStatus | None,
+            to_status: OperationStatus,
+            message: str
+    ):
+        query_next_id = (
+            select(func.coalesce(func.max(OperationEventsOrm.event_id), 0) + 1)
+            .filter_by(operation_id=operation_id)
+        )
+
+        result = await self.session.execute(query_next_id)
+        next_event_id = result.scalar()
+
+        new_event = OperationEventsOrm(
+            operation_id=operation_id,
+            event_id=next_event_id,
+            type=event_type,
+            from_status=from_status,
+            to_status=to_status,
+            message=message,
+            occurred_at=func.now(),
+        )
+
+        self.session.add(new_event)

@@ -14,6 +14,11 @@ class OperationAlreadyExistsError(PaymentGatewayException):
     detail = "Операция с таким operationId уже существует"
 
 
+class ProviderPaymentIdMismatchError(PaymentGatewayException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Указанный providerPaymentId не совпадает с сохраненным для этой операции"
+
+
 class OperationNotFoundError(PaymentGatewayException):
     status_code = status.HTTP_404_NOT_FOUND
     detail = "Операция с таким operationId не найдена"
@@ -30,6 +35,11 @@ class PaymentGatewayHTTPException(HTTPException):
 class OperationAlreadyExistsHTTPException(PaymentGatewayHTTPException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Операция с таким operationId уже существует"
+
+
+class ProviderPaymentIdMismatchHTTPException(PaymentGatewayHTTPException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Указанный providerPaymentId не совпадает с сохраненным для этой операции"
 
 
 class OperationNotFoundHTTPException(PaymentGatewayHTTPException):

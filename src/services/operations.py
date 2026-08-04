@@ -3,8 +3,9 @@ from sqlalchemy.exc import IntegrityError
 from src.exceptions import (
     OperationAlreadyExistsError,
     OperationNotFoundError,
+    ProviderPaymentIdMismatchError,
 )
-from src.schemas.operations import OperationCreateRequest
+from src.schemas.operations import OperationCreateRequest, ReceiptCallbackRequest
 from src.utils.db_manager import DBManager
 from src.statuses import OperationStatus
 
@@ -35,3 +36,38 @@ class OperationService:
             return operation, True
 
         return operation, False
+
+    async def process_receipt(self, callback_data: ReceiptCallbackRequest):
+        operation = await self.db.operations.get_operation_by_id_for_update(callback_data.operation_id)
+
+        if operation is None:
+            raise OperationNotFoundError
+
+        if operation.provider_payment_id is not None:
+            if operation.provider_payment_id != callback_data.provider_payment_id:
+                raise ProviderPaymentIdMismatchError
+        else:
+            operation.provider_payment_id = callback_data.provider_payment_id
+
+        if operation.status in [OperationStatus.COMPLETED, OperationStatus.REJECTED]:
+            await self.db.commit()
+            return
+
+        old_status = operation.status
+        new_status = (
+            OperationStatus.COMPLETED
+            if callback_data.result == "COMPLETED"
+            else OperationStatus.REJECTED
+        )
+
+        operation.status = new_status
+
+        await self.db.operations.add_event(
+            operation_id=operation.operation_id,
+            event_type=new_status.value,
+            from_status=old_status,
+            to_status=new_status,
+            message=callback_data.message,
+        )
+
+        await self.db.commit()

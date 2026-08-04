@@ -1,6 +1,7 @@
+from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Enum, Numeric, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, Enum, Numeric, String, UniqueConstraint, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base
@@ -40,7 +41,10 @@ class OperationEventsOrm(Base):
         Enum(OperationStatus, native_enum=False, length=30)
     )
     message: Mapped[str] = mapped_column(String(255))
-    occurred_at: Mapped[str] = mapped_column(String(50))
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
 
     __table_args__ = (
         UniqueConstraint("operation_id", "event_id", name="uq_operation_event_id"),
