@@ -58,3 +58,8 @@ class OperationsRepository:
         )
 
         self.session.add(new_event)
+
+    async def get_operation_by_id(self, operation_id: str):
+        query = select(OperationsOrm).filter_by(operation_id=operation_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()

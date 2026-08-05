@@ -18,7 +18,7 @@ from src.services.provider import send_to_provider_task
 router = APIRouter()
 
 
-@router.post("/operations", status_code=status.HTTP_201_CREATED, response_model=OperationResponse)
+@router.post("/operations", response_model=OperationResponse, status_code=status.HTTP_201_CREATED)
 async def create_operation(
     operation_data: OperationCreateRequest,
     db: DBDep,
@@ -31,10 +31,10 @@ async def create_operation(
 
 @router.post("/operations/{operation_id}/submit")
 async def submit_operation(
-        operation_id: str,
-        db: DBDep,
-        background_tasks: BackgroundTasks,
-        response: Response,
+    operation_id: str,
+    db: DBDep,
+    background_tasks: BackgroundTasks,
+    response: Response,
 ):
     try:
         operation, is_first_submit = await OperationService(db).submit_operation(operation_id)
@@ -59,8 +59,8 @@ async def submit_operation(
 
 @router.post("/receipts", status_code=status.HTTP_204_NO_CONTENT)
 async def receive_receipt(
-        callback_data: ReceiptCallbackRequest,
-        db: DBDep,
+    callback_data: ReceiptCallbackRequest,
+    db: DBDep,
 ):
     try:
         await OperationService(db).process_receipt(callback_data)
@@ -71,3 +71,14 @@ async def receive_receipt(
 
     except ProviderPaymentIdMismatchError:
         raise ProviderPaymentIdMismatchHTTPException
+
+
+@router.get("/operations/{operation_id}", response_model=OperationResponse, status_code=status.HTTP_200_OK)
+async def get_operation(
+    operation_id: str,
+    db: DBDep,
+):
+    try:
+        return await OperationService(db).get_operation(operation_id)
+    except OperationNotFoundError:
+        raise OperationNotFoundHTTPException

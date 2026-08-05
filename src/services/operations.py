@@ -71,3 +71,9 @@ class OperationService:
         )
 
         await self.db.commit()
+
+    async def get_operation(self, operation_id: str):
+        operation = await self.db.operations.get_operation_by_id(operation_id)
+        if operation is None:
+            raise OperationNotFoundError
+        return operation
