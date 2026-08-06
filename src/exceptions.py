@@ -9,6 +9,11 @@ class PaymentGatewayException(Exception):
         super().__init__(self.detail, *args, **kwargs)
 
 
+class DatabaseUnavailableError(PaymentGatewayException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = "База данных временно недоступна"
+
+
 class OperationAlreadyExistsError(PaymentGatewayException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Операция с таким operationId уже существует"
@@ -30,6 +35,11 @@ class PaymentGatewayHTTPException(HTTPException):
 
     def __init__(self):
         super().__init__(status_code=self.status_code, detail=self.detail)
+
+
+class DatabaseUnavailableHTTPException(PaymentGatewayHTTPException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = "База данных временно недоступна"
 
 
 class OperationAlreadyExistsHTTPException(PaymentGatewayHTTPException):

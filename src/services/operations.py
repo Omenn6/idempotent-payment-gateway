@@ -1,9 +1,11 @@
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.exceptions import (
     OperationAlreadyExistsError,
     OperationNotFoundError,
     ProviderPaymentIdMismatchError,
+    DatabaseUnavailableError,
 )
 from src.schemas.operations import OperationCreateRequest, ReceiptCallbackRequest
 from src.utils.db_manager import DBManager
@@ -13,6 +15,12 @@ from src.statuses import OperationStatus
 class OperationService:
     def __init__(self, db: DBManager | None = None) -> None:
         self.db = db
+
+    async def check_health(self):
+        try:
+            await self.db.session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            raise DatabaseUnavailableError
 
     async def create_operation(self, operation_data: OperationCreateRequest):
         operation = await self.db.operations.create_operation(operation_data)

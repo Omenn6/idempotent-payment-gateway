@@ -11,6 +11,8 @@ from src.exceptions import (
     OperationNotFoundHTTPException,
     ProviderPaymentIdMismatchError,
     ProviderPaymentIdMismatchHTTPException,
+    DatabaseUnavailableError,
+    DatabaseUnavailableHTTPException,
 )
 from src.schemas.operations import (
     OperationCreateRequest,
@@ -23,6 +25,15 @@ from src.services.provider import send_to_provider_task
 
 
 router = APIRouter()
+
+
+@router.get("/health", response_class=Response, status_code=status.HTTP_200_OK)
+async def health_check(db: DBDep):
+    try:
+        await OperationService(db).check_health()
+        return Response(status_code=status.HTTP_200_OK)
+    except DatabaseUnavailableError:
+        raise DatabaseUnavailableHTTPException
 
 
 @router.post("/operations", response_model=OperationResponse, status_code=status.HTTP_201_CREATED)
