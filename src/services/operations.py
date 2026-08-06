@@ -18,6 +18,13 @@ class OperationService:
         operation = await self.db.operations.create_operation(operation_data)
 
         try:
+            await self.db.operations.add_event(
+                operation_id=operation.operation_id,
+                event_type=OperationStatus.CREATED.value,
+                from_status=None,
+                to_status=OperationStatus.CREATED,
+                message="Operation created",
+            )
             await self.db.commit()
             return operation
 
@@ -31,7 +38,16 @@ class OperationService:
             raise OperationNotFoundError
 
         if operation.status == OperationStatus.CREATED:
+            old_status = operation.status
             operation.status = OperationStatus.PROCESSING
+            await self.db.operations.add_event(
+                operation_id=operation.operation_id,
+                event_type=OperationStatus.PROCESSING.value,
+                from_status=old_status,
+                to_status=OperationStatus.PROCESSING,
+                message="Operation submitted for processing",
+            )
+
             await self.db.commit()
             return operation, True
 
@@ -77,3 +93,11 @@ class OperationService:
         if operation is None:
             raise OperationNotFoundError
         return operation
+
+    async def get_operation_events(self, operation_id: str):
+        operation = await self.db.operations.get_operation_by_id_for_update(operation_id)
+
+        if operation is None:
+            raise OperationNotFoundError
+
+        return await self.db.operations.get_operation_events(operation_id)

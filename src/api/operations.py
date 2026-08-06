@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, BackgroundTasks, Response, status
 
 from src.config import settings
@@ -10,7 +12,12 @@ from src.exceptions import (
     ProviderPaymentIdMismatchError,
     ProviderPaymentIdMismatchHTTPException,
 )
-from src.schemas.operations import OperationCreateRequest, OperationResponse, ReceiptCallbackRequest
+from src.schemas.operations import (
+    OperationCreateRequest,
+    OperationResponse,
+    ReceiptCallbackRequest,
+    OperationEventResponse
+)
 from src.services.operations import OperationService
 from src.services.provider import send_to_provider_task
 
@@ -80,5 +87,16 @@ async def get_operation(
 ):
     try:
         return await OperationService(db).get_operation(operation_id)
+    except OperationNotFoundError:
+        raise OperationNotFoundHTTPException
+
+
+@router.get("/operations/{operation_id}/events", response_model=List[OperationEventResponse], status_code=status.HTTP_200_OK)
+async def get_operation_events(
+    operation_id: str,
+    db: DBDep,
+):
+    try:
+        return await OperationService(db).get_operation_events(operation_id)
     except OperationNotFoundError:
         raise OperationNotFoundHTTPException

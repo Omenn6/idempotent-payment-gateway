@@ -63,3 +63,12 @@ class OperationsRepository:
         query = select(OperationsOrm).filter_by(operation_id=operation_id)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
+
+    async def get_operation_events(self, operation_id: str):
+        query = (
+            select(OperationEventsOrm)
+            .filter_by(operation_id=operation_id)
+            .order_by(OperationEventsOrm.event_id.asc())
+        )
+        result = await self.session.execute(query)
+        return result.scalars().all()

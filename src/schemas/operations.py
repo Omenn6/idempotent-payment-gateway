@@ -1,9 +1,22 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, Annotated, Union
 
-from pydantic import BaseModel, Field, field_serializer, ConfigDict
+from pydantic import BaseModel, Field, field_serializer, ConfigDict, PlainSerializer
 from pydantic.alias_generators import to_camel
+
+
+PostgresUtcDT = Annotated[
+    Union[datetime, str],
+    PlainSerializer(
+        lambda v: (
+            v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            if isinstance(v, datetime)
+            else v.replace(" ", "T").replace("+00:00", "Z").replace("+00", "Z")
+        ),
+        return_type=str
+    )
+]
 
 
 class BaseApiModel(BaseModel):
@@ -40,7 +53,7 @@ class OperationEventResponse(BaseApiModel):
     from_status: Literal["CREATED", "PROCESSING", "COMPLETED", "REJECTED"] | None = None
     to_status: Literal["CREATED", "PROCESSING", "COMPLETED", "REJECTED"]
     message: str = Field(min_length=1)
-    occurred_at: datetime
+    occurred_at: PostgresUtcDT
 
 
 class ReceiptCallbackRequest(BaseApiModel):
