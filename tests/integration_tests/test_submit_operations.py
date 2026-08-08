@@ -95,9 +95,8 @@ async def test_send_to_provider_task_retry_on_503(httpx_mock, mocker, create_ope
 async def test_send_to_provider_task_exhausts_retries_on_503(httpx_mock, mocker, create_operation):
     op_id = create_operation
 
-    httpx_mock.add_response(method="POST", status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
-    httpx_mock.add_response(method="POST", status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
-    httpx_mock.add_response(method="POST", status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+    for _ in range(5):
+        httpx_mock.add_response(method="POST", status_code=503)
 
     mock_sleep = mocker.patch("asyncio.sleep", return_value=None)
 
@@ -111,5 +110,5 @@ async def test_send_to_provider_task_exhausts_retries_on_503(httpx_mock, mocker,
     except Exception:
         pass
 
-    assert len(httpx_mock.get_requests()) == 3
-    assert mock_sleep.call_count == 3
+    assert len(httpx_mock.get_requests()) == 5
+    assert mock_sleep.call_count == 5

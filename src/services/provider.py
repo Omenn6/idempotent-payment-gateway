@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+import random
 
 import httpx
 
@@ -7,61 +9,131 @@ from src.config import settings
 from src.database import async_session_maker
 from src.statuses import OperationStatus
 from src.utils.db_manager import DBManager
+from src.utils.structured_logging import log_event
 
 logger = logging.getLogger(__name__)
 
 
 async def send_to_provider_task(
-        operation_id: str,
-        amount: str,
-        currency: str,
-        provider_url: str,
+    operation_id: str,
+    amount: str,
+    currency: str,
+    provider_url: str,
 ):
     headers = {
         "Content-Type": "application/json",
         "Idempotency-Key": operation_id,
-        "X-Correlation-Id": operation_id,
+        "X-Correlation-ID": operation_id,
     }
     payload = {
         "operationId": operation_id,
         "amount": amount,
         "currency": currency,
     }
-
     provider_payment_id = None
 
+    base_delay = 1.0
+    max_delay = 10.0
+    max_attempts = 5
+
+    log_event(
+        logging.INFO,
+        "Запуск отправки платежа провайдеру",
+        operation_id,
+    )
+
     async with httpx.AsyncClient() as client:
-        for attempt in range(3):
+        for attempt in range(1, max_attempts + 1):
             try:
+                log_event(
+                    logging.INFO,
+                    "Отправка HTTP POST запроса к провайдеру",
+                    operation_id,
+                    attempt=attempt,
+                )
+
                 response = await client.post(
                     url=f"{provider_url}/payments",
                     json=payload,
                     headers=headers,
                     timeout=10.0,
                 )
-
                 if response.status_code == 202:
                     data = response.json()
                     provider_payment_id = data.get("providerPaymentId")
+                    log_event(
+                        logging.INFO,
+                        "Провайдер успешно принял платёж",
+                        operation_id,
+                        provider_payment_id=provider_payment_id,
+                        attempt=attempt,
+                    )
                     break
 
                 if response.status_code == 503:
-                    await asyncio.sleep(1)
+                    delay = min(
+                        max_delay, base_delay * (2 ** (attempt - 1))
+                    )
+                    jittered_delay = random.uniform(0, delay)
+                    log_event(
+                        logging.WARNING,
+                        f"Провайдер вернул 503. Повтор через {jittered_delay:.2f} сек.",
+                        operation_id,
+                        attempt=attempt,
+                        extra_fields={"status_code": 503},
+                    )
+                    await asyncio.sleep(jittered_delay)
                     continue
 
+                log_event(
+                    logging.ERROR,
+                    f"Провайдер вернул критическую ошибку {response.status_code}, прерываем попытки",
+                    operation_id,
+                    attempt=attempt,
+                    extra_fields={"status_code": response.status_code},
+                )
                 break
 
-            except httpx.HTTPError:
-                await asyncio.sleep(1)
+            except httpx.HTTPError as exc:
+                delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+                jittered_delay = random.uniform(0, delay)
+
+                log_event(
+                    logging.WARNING,
+                    f"Сетевой сбой при вызове провайдера. Повтор через {jittered_delay:.2f} сек.",
+                    operation_id,
+                    attempt=attempt,
+                    extra_fields={"error_type": type(exc).__name__},
+                )
+                await asyncio.sleep(jittered_delay)
                 continue
 
-        if provider_payment_id is not None:
-            async with DBManager(session_factory=async_session_maker) as db:
-                operation = await db.operations.get_operation_by_id_for_update(operation_id)
+    if provider_payment_id is not None:
+        async with DBManager(session_factory=async_session_maker) as db:
+            operation = (
+                await db.operations.get_operation_by_id_for_update(
+                    operation_id
+                )
+            )
 
-                if operation and operation.status not in [OperationStatus.COMPLETED, OperationStatus.REJECTED]:
-                    operation.provider_payment_id = provider_payment_id
-                    await db.commit()
+            if operation and operation.status not in [
+                OperationStatus.COMPLETED,
+                OperationStatus.REJECTED,
+            ]:
+                operation.provider_payment_id = provider_payment_id
+                await db.commit()
+                log_event(
+                    logging.INFO,
+                    "Идентификатор платежа успешно сохранён в БД",
+                    operation_id,
+                    provider_payment_id=provider_payment_id,
+                )
+    else:
+        log_event(
+            logging.ERROR,
+            "Не удалось получить providerPaymentId после всех попыток фоновой обработки",
+            operation_id,
+        )
 
 
 async def restart_pending_operations_helper():
@@ -71,8 +143,12 @@ async def restart_pending_operations_helper():
 
             if not pending_ops:
                 return
-
             for op in pending_ops:
+                log_event(
+                    logging.INFO,
+                    "Автоматическое возобновление незавершенной операции из статуса PROCESSING",
+                    operation_id=str(op.operation_id),
+                )
                 asyncio.create_task(
                     send_to_provider_task(
                         operation_id=str(op.operation_id),
@@ -81,5 +157,12 @@ async def restart_pending_operations_helper():
                         provider_url=settings.PROVIDER_URL,
                     )
                 )
-    except Exception:
-        logger.exception("Ошибка при автоматическом восстановлении операций")
+    except Exception as exc:
+        logger.exception(
+            json.dumps(
+                {
+                    "event": "Критическая ошибка при автоматическом восстановлении операций",
+                    "error": str(exc),
+                }
+            )
+        )
