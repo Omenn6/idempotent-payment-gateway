@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Response, status
+from fastapi import APIRouter, Response, status
 
 from src.config import settings
 from src.api.dependencies import DBDep
@@ -21,7 +21,7 @@ from src.schemas.operations import (
     OperationEventResponse
 )
 from src.services.operations import OperationService
-from src.services.provider import send_to_provider_task
+from src.services.provider import start_send_to_provider_task
 
 
 router = APIRouter()
@@ -51,7 +51,6 @@ async def create_operation(
 async def submit_operation(
     operation_id: str,
     db: DBDep,
-    background_tasks: BackgroundTasks,
     response: Response,
 ):
     try:
@@ -59,8 +58,7 @@ async def submit_operation(
 
         if is_first_submit:
             response.status_code = status.HTTP_202_ACCEPTED
-            background_tasks.add_task(
-                send_to_provider_task,
+            start_send_to_provider_task(
                 operation_id=str(operation.operation_id),
                 amount=str(operation.amount),
                 currency=str(operation.currency),

@@ -149,13 +149,11 @@ async def restart_pending_operations_helper():
                     "Автоматическое возобновление незавершенной операции из статуса PROCESSING",
                     operation_id=str(op.operation_id),
                 )
-                asyncio.create_task(
-                    send_to_provider_task(
-                        operation_id=str(op.operation_id),
-                        amount=str(op.amount),
-                        currency=str(op.currency),
-                        provider_url=settings.PROVIDER_URL,
-                    )
+                start_send_to_provider_task(
+                    operation_id=str(op.operation_id),
+                    amount=str(op.amount),
+                    currency=str(op.currency),
+                    provider_url=settings.PROVIDER_URL,
                 )
     except Exception as exc:
         logger.exception(
@@ -165,4 +163,47 @@ async def restart_pending_operations_helper():
                     "error": str(exc),
                 }
             )
+        )
+
+
+active_tasks = set()
+
+
+def start_send_to_provider_task(operation_id: str, amount: str, currency: str, provider_url: str):
+    task = asyncio.create_task(
+        send_to_provider_task(
+            operation_id=operation_id,
+            amount=amount,
+            currency=currency,
+            provider_url=provider_url
+        )
+    )
+    active_tasks.add(task)
+    task.add_done_callback(active_tasks.discard)
+    return task
+
+
+async def shutdown_background_tasks(timeout: float = 10.0):
+    if not active_tasks:
+        log_event(logging.INFO, "Нет активных фоновых задач для завершения", operation_id=None)
+        return
+
+    log_event(
+        logging.INFO,
+        f"Обнаружено активных фоновых задач: {len(active_tasks)}. Ожидаем их завершения...",
+        operation_id=None,
+        extra_fields={"timeout": timeout}
+    )
+
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(*active_tasks, return_exceptions=True),
+            timeout=timeout
+        )
+        log_event(logging.INFO, "Все фоновые задачи успешно завершены (Graceful Shutdown)", operation_id=None)
+    except asyncio.TimeoutError:
+        log_event(
+            logging.WARNING,
+            "Время ожидания фоновых задач истекло. Некоторые операции будут прерваны и восстановлены при следующем старте.",
+            operation_id=None
         )

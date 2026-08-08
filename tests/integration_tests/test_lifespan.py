@@ -25,7 +25,7 @@ async def test_lifespan_restarts_pending_operations(mocker):
         db.session.add(stuck_op)
         await db.session.commit()
 
-    mock_task = mocker.patch("src.services.provider.send_to_provider_task")
+    mock_task = mocker.patch("src.services.provider.start_send_to_provider_task")
     await restart_pending_operations_helper()
 
     mock_task.assert_called_once_with(

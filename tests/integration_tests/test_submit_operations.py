@@ -12,7 +12,7 @@ from src.utils.db_manager import DBManager
 
 @pytest.mark.anyio
 async def test_submit_operation_first_time_success(client, create_operation, mocker):
-    mock_task = mocker.patch("src.api.operations.send_to_provider_task")
+    mock_task = mocker.patch("src.api.operations.start_send_to_provider_task")
     op_id = create_operation
     response = await client.post(f"/operations/{op_id}/submit")
 
@@ -29,7 +29,7 @@ async def test_submit_operation_first_time_success(client, create_operation, moc
 
 @pytest.mark.anyio
 async def test_submit_operation_repeated_returns_200(client, create_operation, mocker):
-    mock_task = mocker.patch("src.api.operations.send_to_provider_task")
+    mock_task = mocker.patch("src.api.operations.start_send_to_provider_task")
     op_id = create_operation
 
     first_resp = await client.post(f"/operations/{op_id}/submit")
@@ -52,7 +52,7 @@ async def test_submit_operation_not_found(client):
 
 @pytest.mark.anyio
 async def test_submit_concurrent_race_condition(client, create_operation, mocker):
-    mock_task = mocker.patch("src.api.operations.send_to_provider_task")
+    mock_task = mocker.patch("src.api.operations.start_send_to_provider_task")
     op_id = create_operation
 
     tasks = [client.post(f"/operations/{op_id}/submit") for _ in range(5)]
