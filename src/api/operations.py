@@ -21,7 +21,8 @@ from src.schemas.operations import (
     OperationEventResponse
 )
 from src.services.operations import OperationService
-from src.services.provider import start_send_to_provider_task
+from src.services.provider import start_send_to_provider_task, active_tasks
+from src.utils.metrics import metrics
 
 
 router = APIRouter()
@@ -109,3 +110,11 @@ async def get_operation_events(
         return await OperationService(db).get_operation_events(operation_id)
     except OperationNotFoundError:
         raise OperationNotFoundHTTPException
+
+
+@router.get("/metrics")
+async def get_metrics():
+    return {
+        "retry_count": metrics.retry_count,
+        "pending_operations_count": len(active_tasks)
+    }

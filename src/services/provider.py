@@ -10,6 +10,7 @@ from src.database import async_session_maker
 from src.statuses import OperationStatus
 from src.utils.db_manager import DBManager
 from src.utils.structured_logging import log_event
+from src.utils.metrics import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,7 @@ async def send_to_provider_task(
                         attempt=attempt,
                         extra_fields={"status_code": 503},
                     )
+                    metrics.increment_retry_counter()
                     await asyncio.sleep(jittered_delay)
                     continue
 
@@ -105,6 +107,7 @@ async def send_to_provider_task(
                     attempt=attempt,
                     extra_fields={"error_type": type(exc).__name__},
                 )
+                metrics.increment_retry_counter()
                 await asyncio.sleep(jittered_delay)
                 continue
 
