@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:-postgres_password}
+      POSTGRES_DB: ${DB_NAME:-payment_gateway}
     ports:
-      - "${DB_PORT}:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-payment_gateway}"]
       interval: 3s
       timeout: 3s
       retries: 5
@@ -20,6 +20,12 @@ services:
   migration-runner:
     build: .
     command: alembic upgrade head
+    environment:
+      DB_HOST: "postgres_db"
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-postgres_password}
+      DB_NAME: ${DB_NAME:-payment_gateway}
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -28,8 +34,12 @@ services:
     build: .
     container_name: candidate-service
     environment:
-      - PROVIDER_URL=http://provider-simulator:8081
-      - DB_HOST=postgres_db
+      PROVIDER_URL: "http://provider-simulator:8081"
+      DB_HOST: "postgres_db"
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-postgres_password}
+      DB_NAME: ${DB_NAME:-payment_gateway}
     ports:
       - "8080:8080"
     volumes:
@@ -44,11 +54,9 @@ services:
     image: ghcr.io/fintech-dev-lab/internship-provider-simulator:v0.2.0
     container_name: provider-simulator
     environment:
-      - CALLBACK_URL=http://candidate-service:8080/receipts
+      CALLBACK_URL: "http://candidate-service:8080/receipts"
     ports:
       - "8081:8081"
-    volumes:
-      - candidate-data:/data
     depends_on:
       - candidate-service
 
