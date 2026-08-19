@@ -100,6 +100,11 @@ async def test_send_to_provider_task_exhausts_retries_on_503(httpx_mock, mocker,
 
     mock_sleep = mocker.patch("asyncio.sleep", return_value=None)
 
+    async with DBManager(async_session_maker) as db:
+        operation = await db.operations.get_operation_by_id_for_update(op_id)
+        operation.status = OperationStatus.PROCESSING
+        await db.commit()
+
     try:
         await send_to_provider_task(
             operation_id=op_id,
@@ -112,3 +117,8 @@ async def test_send_to_provider_task_exhausts_retries_on_503(httpx_mock, mocker,
 
     assert len(httpx_mock.get_requests()) == 5
     assert mock_sleep.call_count == 5
+
+    async with DBManager(async_session_maker) as db:
+        operation = await db.operations.get_operation_by_id_for_update(op_id)
+        assert operation.status == OperationStatus.PROCESSING
+        assert operation.provider_payment_id is None
