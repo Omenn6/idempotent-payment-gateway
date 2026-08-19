@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import random
+import traceback
 
 import httpx
 
@@ -20,7 +21,7 @@ async def send_to_provider_task(
     amount: str,
     currency: str,
     provider_url: str,
-):
+) -> None:
     headers = {
         "Content-Type": "application/json",
         "Idempotency-Key": operation_id,
@@ -72,9 +73,7 @@ async def send_to_provider_task(
                     break
 
                 if response.status_code == 503:
-                    delay = min(
-                        max_delay, base_delay * (2 ** (attempt - 1))
-                    )
+                    delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
                     jittered_delay = random.uniform(0, delay)
                     log_event(
                         logging.WARNING,
@@ -96,7 +95,7 @@ async def send_to_provider_task(
                 )
                 break
 
-            except httpx.HTTPError as exc:
+            except httpx.RequestError as exc:
                 delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
                 jittered_delay = random.uniform(0, delay)
 
@@ -139,7 +138,7 @@ async def send_to_provider_task(
         )
 
 
-async def restart_pending_operations_helper():
+async def restart_pending_operations_helper() -> None:
     try:
         async with DBManager(session_factory=async_session_maker) as db:
             pending_ops = await db.operations.get_pending_operations()
@@ -159,20 +158,20 @@ async def restart_pending_operations_helper():
                     provider_url=settings.PROVIDER_URL,
                 )
     except Exception as exc:
-        logger.exception(
-            json.dumps(
-                {
-                    "event": "Критическая ошибка при автоматическом восстановлении операций",
-                    "error": str(exc),
-                }
-            )
+        log_event(
+            level=logging.ERROR,
+            message="Критическая ошибка при автоматическом восстановлении операций",
+            extra_fields={
+                "error": str(exc),
+                "traceback": traceback.format_exc(),
+            }
         )
 
 
 active_tasks = set()
 
 
-def start_send_to_provider_task(operation_id: str, amount: str, currency: str, provider_url: str):
+def start_send_to_provider_task(operation_id: str, amount: str, currency: str, provider_url: str) -> asyncio.Task[None]:
     task = asyncio.create_task(
         send_to_provider_task(
             operation_id=operation_id,
@@ -186,7 +185,7 @@ def start_send_to_provider_task(operation_id: str, amount: str, currency: str, p
     return task
 
 
-async def shutdown_background_tasks(timeout: float = 10.0):
+async def shutdown_background_tasks(timeout: float = 10.0) -> None:
     if not active_tasks:
         log_event(logging.INFO, "Нет активных фоновых задач для завершения", operation_id=None)
         return
@@ -203,7 +202,7 @@ async def shutdown_background_tasks(timeout: float = 10.0):
             asyncio.gather(*active_tasks, return_exceptions=True),
             timeout=timeout
         )
-        log_event(logging.INFO, "Все фоновые задачи успешно завершены (Graceful Shutdown)", operation_id=None)
+        log_event(logging.INFO, "Все фоновые задачи успешно завершены", operation_id=None)
     except asyncio.TimeoutError:
         log_event(
             logging.WARNING,
