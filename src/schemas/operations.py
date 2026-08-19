@@ -2,17 +2,19 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal, Annotated, Union
 
-from pydantic import BaseModel, Field, field_serializer, ConfigDict, PlainSerializer
+from pydantic import BaseModel, Field, field_serializer, ConfigDict, PlainSerializer, StringConstraints
 from pydantic.alias_generators import to_camel
+
+from src.statuses import OperationStatus
 
 
 PostgresUtcDT = Annotated[
     Union[datetime, str],
     PlainSerializer(
         lambda v: (
-            v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             if isinstance(v, datetime)
-            else v.replace(" ", "T").replace("+00:00", "Z").replace("+00", "Z")
+            else v.split(".")[0].replace(" ", "T").replace("+00:00", "").replace("+00", "") + "Z"
         ),
         return_type=str
     )
@@ -28,18 +30,18 @@ class BaseApiModel(BaseModel):
 
 
 class OperationCreateRequest(BaseApiModel):
-    operation_id: str = Field(min_length=1)
+    operation_id: Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)]
     amount: Decimal = Field(max_digits=12, decimal_places=2, gt=0)
     currency: Literal["RUB"]
     description: str | None = None
 
 
 class OperationResponse(BaseApiModel):
-    operation_id: str = Field(min_length=1)
+    operation_id: Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)]
     amount: Decimal = Field(max_digits=12, decimal_places=2, gt=0)
     currency: Literal["RUB"]
     description: str | None = None
-    status: Literal["CREATED", "PROCESSING", "COMPLETED", "REJECTED"]
+    status: OperationStatus
     provider_payment_id: str | None = None
 
     @field_serializer("amount")
@@ -49,17 +51,17 @@ class OperationResponse(BaseApiModel):
 
 class OperationEventResponse(BaseApiModel):
     event_id: int = Field(ge=1)
-    type: Literal["CREATED", "PROCESSING", "COMPLETED", "REJECTED"]
-    from_status: Literal["CREATED", "PROCESSING", "COMPLETED", "REJECTED"] | None = None
-    to_status: Literal["CREATED", "PROCESSING", "COMPLETED", "REJECTED"]
-    message: str = Field(min_length=1)
+    type: OperationStatus
+    from_status: OperationStatus | None = None
+    to_status: OperationStatus
+    message: str
     occurred_at: PostgresUtcDT
 
 
 class ReceiptCallbackRequest(BaseApiModel):
     provider_payment_id: str = Field(min_length=1)
-    operation_id: str = Field(min_length=1)
-    result: Literal["COMPLETED", "REJECTED"]
+    operation_id: Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)]
+    result: Literal[OperationStatus.COMPLETED, OperationStatus.REJECTED]
     message: str = Field(min_length=1)
     occurred_at: datetime
 
