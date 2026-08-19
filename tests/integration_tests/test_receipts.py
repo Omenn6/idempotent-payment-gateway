@@ -18,7 +18,7 @@ async def test_receipt_success_completed(client: AsyncClient, create_operation: 
         "operationId": operation_id,
         "result": "COMPLETED",
         "message": "Payment completed successfully",
-        "occurredAt": "2026-07-15T12:00:00Z"
+        "occurredAt": "2026-07-15T12:00:00Z",
     }
 
     response = await client.post("/receipts", json=payload)
@@ -39,7 +39,7 @@ async def test_receipt_idempotent_repeat(client: AsyncClient, create_operation: 
         "operationId": operation_id,
         "result": "COMPLETED",
         "message": "Payment completed successfully",
-        "occurredAt": "2026-07-15T12:00:00Z"
+        "occurredAt": "2026-07-15T12:00:00Z",
     }
 
     response_1 = await client.post("/receipts", json=payload)
@@ -59,7 +59,7 @@ async def test_receipt_late_conflict(client: AsyncClient, create_operation: str)
         "operationId": operation_id,
         "result": "COMPLETED",
         "message": "Success",
-        "occurredAt": "2026-07-15T12:00:00Z"
+        "occurredAt": "2026-07-15T12:00:00Z",
     }
     await client.post("/receipts", json=payload_completed)
 
@@ -68,7 +68,7 @@ async def test_receipt_late_conflict(client: AsyncClient, create_operation: str)
         "operationId": operation_id,
         "result": "REJECTED",
         "message": "Late mistake reject",
-        "occurredAt": "2026-07-15T12:05:00Z"
+        "occurredAt": "2026-07-15T12:05:00Z",
     }
     response = await client.post("/receipts", json=payload_rejected)
 
@@ -80,7 +80,9 @@ async def test_receipt_late_conflict(client: AsyncClient, create_operation: str)
 
 
 @pytest.mark.anyio
-async def test_receipt_mismatched_provider_payment_id(client: AsyncClient, create_operation: str):
+async def test_receipt_mismatched_provider_payment_id(
+    client: AsyncClient, create_operation: str
+):
     operation_id = create_operation
 
     payload_correct = {
@@ -88,7 +90,7 @@ async def test_receipt_mismatched_provider_payment_id(client: AsyncClient, creat
         "operationId": operation_id,
         "result": "COMPLETED",
         "message": "First correct bind",
-        "occurredAt": "2026-07-15T12:00:00Z"
+        "occurredAt": "2026-07-15T12:00:00Z",
     }
     await client.post("/receipts", json=payload_correct)
 
@@ -97,7 +99,7 @@ async def test_receipt_mismatched_provider_payment_id(client: AsyncClient, creat
         "operationId": operation_id,
         "result": "COMPLETED",
         "message": "Mismatched attempt",
-        "occurredAt": "2026-07-15T12:01:00Z"
+        "occurredAt": "2026-07-15T12:01:00Z",
     }
     response = await client.post("/receipts", json=payload_wrong)
 
@@ -111,7 +113,7 @@ async def test_receipt_not_found(client: AsyncClient):
         "operationId": "unknown-operation-id-12345",
         "result": "COMPLETED",
         "message": "Ghost receipt",
-        "occurredAt": "2026-07-15T12:00:00Z"
+        "occurredAt": "2026-07-15T12:00:00Z",
     }
     response = await client.post("/receipts", json=payload)
     assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -125,12 +127,11 @@ async def test_receipt_race_condition(client: AsyncClient, create_operation: str
         "operationId": operation_id,
         "result": "COMPLETED",
         "message": "Race request",
-        "occurredAt": "2026-07-15T12:00:00Z"
+        "occurredAt": "2026-07-15T12:00:00Z",
     }
 
     results = await asyncio.gather(
-        client.post("/receipts", json=payload),
-        client.post("/receipts", json=payload)
+        client.post("/receipts", json=payload), client.post("/receipts", json=payload)
     )
 
     for response in results:

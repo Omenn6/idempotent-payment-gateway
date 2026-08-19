@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import random
 import traceback
@@ -10,8 +9,8 @@ from src.config import settings
 from src.database import async_session_maker
 from src.statuses import OperationStatus
 from src.utils.db_manager import DBManager
-from src.utils.structured_logging import log_event
 from src.utils.metrics import metrics
+from src.utils.structured_logging import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -112,11 +111,7 @@ async def send_to_provider_task(
 
     if provider_payment_id is not None:
         async with DBManager(session_factory=async_session_maker) as db:
-            operation = (
-                await db.operations.get_operation_by_id_for_update(
-                    operation_id
-                )
-            )
+            operation = await db.operations.get_operation_by_id_for_update(operation_id)
 
             if operation and operation.status not in [
                 OperationStatus.COMPLETED,
@@ -157,27 +152,29 @@ async def restart_pending_operations_helper() -> None:
                     currency=str(op.currency),
                     provider_url=settings.PROVIDER_URL,
                 )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         log_event(
             level=logging.ERROR,
             message="Критическая ошибка при автоматическом восстановлении операций",
             extra_fields={
                 "error": str(exc),
                 "traceback": traceback.format_exc(),
-            }
+            },
         )
 
 
 active_tasks = set()
 
 
-def start_send_to_provider_task(operation_id: str, amount: str, currency: str, provider_url: str) -> asyncio.Task[None]:
+def start_send_to_provider_task(
+    operation_id: str, amount: str, currency: str, provider_url: str
+) -> asyncio.Task[None]:
     task = asyncio.create_task(
         send_to_provider_task(
             operation_id=operation_id,
             amount=amount,
             currency=currency,
-            provider_url=provider_url
+            provider_url=provider_url,
         )
     )
     active_tasks.add(task)
@@ -187,25 +184,28 @@ def start_send_to_provider_task(operation_id: str, amount: str, currency: str, p
 
 async def shutdown_background_tasks(timeout: float = 10.0) -> None:
     if not active_tasks:
-        log_event(logging.INFO, "Нет активных фоновых задач для завершения", operation_id=None)
+        log_event(
+            logging.INFO, "Нет активных фоновых задач для завершения", operation_id=None
+        )
         return
 
     log_event(
         logging.INFO,
         f"Обнаружено активных фоновых задач: {len(active_tasks)}. Ожидаем их завершения...",
         operation_id=None,
-        extra_fields={"timeout": timeout}
+        extra_fields={"timeout": timeout},
     )
 
     try:
         await asyncio.wait_for(
-            asyncio.gather(*active_tasks, return_exceptions=True),
-            timeout=timeout
+            asyncio.gather(*active_tasks, return_exceptions=True), timeout=timeout
         )
-        log_event(logging.INFO, "Все фоновые задачи успешно завершены", operation_id=None)
+        log_event(
+            logging.INFO, "Все фоновые задачи успешно завершены", operation_id=None
+        )
     except asyncio.TimeoutError:
         log_event(
             logging.WARNING,
             "Время ожидания фоновых задач истекло. Некоторые операции будут прерваны и восстановлены при следующем старте.",
-            operation_id=None
+            operation_id=None,
         )

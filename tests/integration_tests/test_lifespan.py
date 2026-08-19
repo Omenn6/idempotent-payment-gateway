@@ -13,14 +13,13 @@ async def test_lifespan_restarts_pending_operations(mocker):
     stuck_op_id = "stuck-operation"
 
     async with DBManager(async_session_maker) as db:
-
         stuck_op = OperationsOrm(
             operation_id=stuck_op_id,
             amount="5000.00",
             currency="RUB",
             description="Stuck before reboot",
             status=OperationStatus.PROCESSING,
-            provider_payment_id=None
+            provider_payment_id=None,
         )
         db.session.add(stuck_op)
         await db.session.commit()
@@ -32,5 +31,5 @@ async def test_lifespan_restarts_pending_operations(mocker):
         operation_id=stuck_op_id,
         amount="5000.00",
         currency="RUB",
-        provider_url=settings.PROVIDER_URL
+        provider_url=settings.PROVIDER_URL,
     )

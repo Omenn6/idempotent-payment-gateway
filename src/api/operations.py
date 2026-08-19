@@ -1,32 +1,29 @@
 import logging
 
-from typing import List
+from fastapi import APIRouter, Path, Response, status
 
-from fastapi import APIRouter, Response, status, Path
-
-from src.config import settings
 from src.api.dependencies import DBDep
+from src.config import settings
 from src.exceptions import (
+    DatabaseUnavailableError,
+    DatabaseUnavailableHTTPException,
     OperationAlreadyExistsError,
     OperationAlreadyExistsHTTPException,
     OperationNotFoundError,
     OperationNotFoundHTTPException,
     ProviderPaymentIdMismatchError,
     ProviderPaymentIdMismatchHTTPException,
-    DatabaseUnavailableError,
-    DatabaseUnavailableHTTPException,
 )
 from src.schemas.operations import (
     OperationCreateRequest,
+    OperationEventResponse,
     OperationResponse,
     ReceiptCallbackRequest,
-    OperationEventResponse
 )
 from src.services.operations import OperationService
-from src.services.provider import start_send_to_provider_task, active_tasks
-from src.utils.structured_logging import log_event
+from src.services.provider import active_tasks, start_send_to_provider_task
 from src.utils.metrics import metrics
-
+from src.utils.structured_logging import log_event
 
 router = APIRouter()
 
@@ -49,7 +46,7 @@ async def health_check(db: DBDep):
     "/operations",
     response_model=OperationResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Создать новую операцию"
+    summary="Создать новую операцию",
 )
 async def create_operation(
     operation_data: OperationCreateRequest,
@@ -72,7 +69,9 @@ async def submit_operation(
     operation_id: str = Path(..., alias="id"),
 ):
     try:
-        operation, is_first_submit = await OperationService(db).submit_operation(operation_id)
+        operation, is_first_submit = await OperationService(db).submit_operation(
+            operation_id
+        )
 
         if is_first_submit:
             response.status_code = status.HTTP_202_ACCEPTED
@@ -80,9 +79,9 @@ async def submit_operation(
             log_event(
                 logging.INFO,
                 "Команда на первичную отправку платежа принята",
-                operation_id=operation_id
+                operation_id=operation_id,
             )
-            
+
             start_send_to_provider_task(
                 operation_id=str(operation.operation_id),
                 amount=str(operation.amount),
@@ -101,7 +100,7 @@ async def submit_operation(
 @router.post(
     "/receipts",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Принять callback-квитанцию от провайдера"
+    summary="Принять callback-квитанцию от провайдера",
 )
 async def receive_receipt(
     callback_data: ReceiptCallbackRequest,
@@ -122,7 +121,7 @@ async def receive_receipt(
     "/operations/{id}",
     response_model=OperationResponse,
     status_code=status.HTTP_200_OK,
-    summary="Получить текущее состояние операции"
+    summary="Получить текущее состояние операции",
 )
 async def get_operation(
     db: DBDep,
@@ -136,9 +135,9 @@ async def get_operation(
 
 @router.get(
     "/operations/{id}/events",
-    response_model=List[OperationEventResponse],
+    response_model=list[OperationEventResponse],
     status_code=status.HTTP_200_OK,
-    summary="Получить историю изменений статусов операции"
+    summary="Получить историю изменений статусов операции",
 )
 async def get_operation_events(
     db: DBDep,
@@ -154,5 +153,5 @@ async def get_operation_events(
 async def get_metrics():
     return {
         "retry_count": metrics.retry_count,
-        "pending_operations_count": len(active_tasks)
+        "pending_operations_count": len(active_tasks),
     }

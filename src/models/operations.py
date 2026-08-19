@@ -1,7 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Enum, Numeric, String, UniqueConstraint, DateTime, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base
@@ -17,13 +25,11 @@ class OperationsOrm(Base):
     description: Mapped[str] = mapped_column(String(255))
     status: Mapped[OperationStatus] = mapped_column(
         Enum(OperationStatus, native_enum=False, length=30),
-        default=OperationStatus.CREATED
+        default=OperationStatus.CREATED,
     )
     provider_payment_id: Mapped[str | None] = mapped_column(String(255), default=None)
 
-    __table_args__ = (
-        CheckConstraint("amount > 0", name="check_amount_positive"),
-    )
+    __table_args__ = (CheckConstraint("amount > 0", name="check_amount_positive"),)
 
 
 class OperationEventsOrm(Base):
@@ -35,7 +41,7 @@ class OperationEventsOrm(Base):
     type: Mapped[str] = mapped_column(String(50))
     from_status: Mapped[OperationStatus | None] = mapped_column(
         Enum(OperationStatus, native_enum=False, length=30),
-        default=None
+        default=None,
     )
     to_status: Mapped[OperationStatus] = mapped_column(
         Enum(OperationStatus, native_enum=False, length=30)
@@ -43,7 +49,7 @@ class OperationEventsOrm(Base):
     message: Mapped[str] = mapped_column(String(255))
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now()
+        server_default=func.now(),
     )
 
     __table_args__ = (

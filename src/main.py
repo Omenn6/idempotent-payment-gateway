@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
 import uvicorn
+from fastapi import FastAPI
 
 from src.api.operations import router as operations_router
 from src.services.provider import (

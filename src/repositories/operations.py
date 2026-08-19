@@ -1,9 +1,9 @@
-from typing import Sequence
+from collections.abc import Sequence
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.operations import OperationsOrm, OperationEventsOrm
+from src.models.operations import OperationEventsOrm, OperationsOrm
 from src.schemas.operations import OperationCreateRequest
 from src.statuses import OperationStatus
 
@@ -23,8 +23,14 @@ class OperationsRepository:
         self.session.add(new_operation)
         return new_operation
 
-    async def get_operation_by_id_for_update(self, operation_id: str) -> OperationsOrm | None:
-        query = select(OperationsOrm).filter_by(operation_id=operation_id).with_for_update()
+    async def get_operation_by_id_for_update(
+        self, operation_id: str
+    ) -> OperationsOrm | None:
+        query = (
+            select(OperationsOrm)
+            .filter_by(operation_id=operation_id)
+            .with_for_update()
+        )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
@@ -34,17 +40,16 @@ class OperationsRepository:
         return result.scalars().all()
 
     async def add_event(
-            self,
-            operation_id: str,
-            event_type: str,
-            from_status: OperationStatus | None,
-            to_status: OperationStatus,
-            message: str
+        self,
+        operation_id: str,
+        event_type: str,
+        from_status: OperationStatus | None,
+        to_status: OperationStatus,
+        message: str,
     ) -> None:
-        query_next_id = (
-            select(func.coalesce(func.max(OperationEventsOrm.event_id), 0) + 1)
-            .filter_by(operation_id=operation_id)
-        )
+        query_next_id = select(
+            func.coalesce(func.max(OperationEventsOrm.event_id), 0) + 1
+        ).filter_by(operation_id=operation_id)
 
         result = await self.session.execute(query_next_id)
         next_event_id = result.scalar()
@@ -66,7 +71,9 @@ class OperationsRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_operation_events(self, operation_id: str) -> Sequence[OperationEventsOrm]:
+    async def get_operation_events(
+        self, operation_id: str
+    ) -> Sequence[OperationEventsOrm]:
         query = (
             select(OperationEventsOrm)
             .filter_by(operation_id=operation_id)

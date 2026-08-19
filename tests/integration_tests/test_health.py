@@ -1,5 +1,5 @@
-from _pytest.monkeypatch import MonkeyPatch
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from fastapi import status
 from httpx import AsyncClient
 

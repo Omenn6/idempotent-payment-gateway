@@ -1,7 +1,7 @@
 import asyncio
 
-from fastapi import status
 import pytest
+from fastapi import status
 
 from src.config import settings
 from src.database import async_session_maker
@@ -46,13 +46,13 @@ async def test_submit_operation_repeated_returns_200(client, create_operation, m
 
 @pytest.mark.anyio
 async def test_submit_operation_not_found(client):
-    response = await client.post(f"/operations/non-existent-id/submit")
+    response = await client.post("/operations/non-existent-id/submit")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.anyio
 async def test_submit_concurrent_race_condition(client, create_operation, mocker):
-    mock_task = mocker.patch("src.api.operations.start_send_to_provider_task")
+    mocker.patch("src.api.operations.start_send_to_provider_task")
     op_id = create_operation
 
     tasks = [client.post(f"/operations/{op_id}/submit") for _ in range(5)]
@@ -72,7 +72,7 @@ async def test_send_to_provider_task_retry_on_503(httpx_mock, mocker, create_ope
     httpx_mock.add_response(
         method="POST",
         status_code=202,
-        json={"providerPaymentId": "uuid-success-789", "status": "ACCEPTED"}
+        json={"providerPaymentId": "uuid-success-789", "status": "ACCEPTED"},
     )
     mock_sleep = mocker.patch("asyncio.sleep", return_value=None)
 
@@ -80,7 +80,7 @@ async def test_send_to_provider_task_retry_on_503(httpx_mock, mocker, create_ope
         operation_id=op_id,
         amount="1000.00",
         currency="RUB",
-        provider_url=settings.PROVIDER_URL
+        provider_url=settings.PROVIDER_URL,
     )
 
     assert len(httpx_mock.get_requests()) == 3
@@ -92,7 +92,11 @@ async def test_send_to_provider_task_retry_on_503(httpx_mock, mocker, create_ope
 
 
 @pytest.mark.anyio
-async def test_send_to_provider_task_exhausts_retries_on_503(httpx_mock, mocker, create_operation):
+async def test_send_to_provider_task_exhausts_retries_on_503(
+    httpx_mock,
+    mocker,
+    create_operation,
+):
     op_id = create_operation
 
     for _ in range(5):
@@ -110,9 +114,9 @@ async def test_send_to_provider_task_exhausts_retries_on_503(httpx_mock, mocker,
             operation_id=op_id,
             amount="1000.00",
             currency="RUB",
-            provider_url=settings.PROVIDER_URL
+            provider_url=settings.PROVIDER_URL,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
 
     assert len(httpx_mock.get_requests()) == 5

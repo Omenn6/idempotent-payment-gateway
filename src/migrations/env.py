@@ -1,16 +1,14 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
-
-from src.database import Base
-from src.models.operations import OperationsOrm, OperationEventsOrm
 from src.config import settings
-
+from src.database import Base
+from src.models.operations import OperationEventsOrm, OperationsOrm  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

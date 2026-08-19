@@ -1,23 +1,33 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Literal, Annotated, Union
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_serializer, ConfigDict, PlainSerializer, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    StringConstraints,
+    field_serializer,
+)
 from pydantic.alias_generators import to_camel
 
 from src.statuses import OperationStatus
 
-
 PostgresUtcDT = Annotated[
-    Union[datetime, str],
+    datetime | str,
     PlainSerializer(
         lambda v: (
             v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             if isinstance(v, datetime)
-            else v.split(".")[0].replace(" ", "T").replace("+00:00", "").replace("+00", "") + "Z"
+            else v.split(".")[0]
+            .replace(" ", "T")
+            .replace("+00:00", "")
+            .replace("+00", "")
+            + "Z"
         ),
-        return_type=str
-    )
+        return_type=str,
+    ),
 ]
 
 

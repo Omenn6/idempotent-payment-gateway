@@ -1,6 +1,6 @@
 import pytest
 from fastapi import status
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from src.api.dependencies import get_db
@@ -27,7 +27,11 @@ async def setup_database():
 @pytest.fixture(autouse=True)
 async def clean_database():
     async with DBManager(session_factory=async_session_maker_null_pool) as db:
-        await db.session.execute(text("TRUNCATE TABLE operations, operation_events RESTART IDENTITY CASCADE;"))
+        await db.session.execute(
+            text(
+                "TRUNCATE TABLE operations, operation_events RESTART IDENTITY CASCADE;"
+            )
+        )
         await db.commit()
 
 
@@ -38,13 +42,15 @@ def anyio_backend():
 
 @pytest.fixture(scope="session")
 async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
 
 @pytest.fixture(scope="function")
 async def create_operation(client):
-    payload ={
+    payload = {
         "operationId": "test-operation",
         "amount": "1000.00",
         "currency": "RUB",
