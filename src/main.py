@@ -17,9 +17,14 @@ async def lifespan(app: FastAPI):
     await shutdown_background_tasks(timeout=10.0)
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    title="Idempotent Payment Gateway API",
+    description="Сервис идемпотентного платежного шлюза с гарантированной обработкой операций и отказоустойчивостью.",
+    version="1.0.0",
+)
 
 app.include_router(operations_router)
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8080, reload=True)
