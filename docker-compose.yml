@@ -3,11 +3,11 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASS:-postgres_password}
-      POSTGRES_DB: ${DB_NAME:-payment_gateway}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: payment_gateway
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     entrypoint: >
@@ -28,9 +28,9 @@ services:
     environment:
       DB_HOST: "postgres_db"
       DB_PORT: "5432"
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASS: ${DB_PASS:-postgres_password}
-      DB_NAME: ${DB_NAME:-payment_gateway}
+      DB_USER: postgres
+      DB_PASS: postgres_password
+      DB_NAME: payment_gateway
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -42,9 +42,9 @@ services:
       PROVIDER_URL: "http://provider-simulator:8081"
       DB_HOST: "postgres_db"
       DB_PORT: "5432"
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASS: ${DB_PASS:-postgres_password}
-      DB_NAME: ${DB_NAME:-payment_gateway}
+      DB_USER: postgres
+      DB_PASS: postgres_password
+      DB_NAME: payment_gateway
     ports:
       - "8080:8080"
     volumes:
