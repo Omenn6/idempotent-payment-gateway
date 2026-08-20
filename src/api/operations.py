@@ -25,7 +25,7 @@ from src.services.provider import active_tasks, start_send_to_provider_task
 from src.utils.metrics import metrics
 from src.utils.structured_logging import log_event
 
-router = APIRouter()
+router = APIRouter(tags=["Operations"])
 
 
 @router.get(

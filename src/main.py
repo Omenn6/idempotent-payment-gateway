@@ -17,11 +17,19 @@ async def lifespan(app: FastAPI):
     await shutdown_background_tasks(timeout=10.0)
 
 
+tags_metadata = [
+    {
+        "name": "Operations",
+        "description": "Эндпоинты для управления платежными операциями и квитанциями",
+    },
+]
+
 app = FastAPI(
     lifespan=lifespan,
     title="Idempotent Payment Gateway API",
     description="Сервис идемпотентного платежного шлюза с гарантированной обработкой операций и отказоустойчивостью.",
     version="1.0.0",
+    openapi_tags=tags_metadata,
 )
 
 app.include_router(operations_router)
