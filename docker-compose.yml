@@ -9,7 +9,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - candidate-data:/var/lib/postgresql/data
     entrypoint: >
       sh -c "
       echo 'CREATE DATABASE test_payment_gateway;' > /docker-entrypoint-initdb.d/init-test-db.sql &&
@@ -66,5 +66,4 @@ services:
       - candidate-service
 
 volumes:
-  pg-data:
   candidate-data:
